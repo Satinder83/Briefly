@@ -26,15 +26,24 @@ def init_db(db_path=DB_PATH):
             url               TEXT UNIQUE,
             scraped_content   TEXT,
             category          TEXT,
+            categories        TEXT,
+            tags              TEXT,
             summary           TEXT,
             word_count        INTEGER,
             article_image_url TEXT,
             card_path         TEXT,
+            short_url         TEXT,
             status            TEXT DEFAULT 'PENDING',
             published_at      TEXT,
             created_at        TEXT DEFAULT (datetime('now'))
         )
     """)
+    # migrate existing DBs that may be missing newer columns
+    for col in ("short_url TEXT", "categories TEXT", "tags TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE articles ADD COLUMN {col}")
+        except Exception:
+            pass  # column already exists
     conn.commit()
     conn.close()
     return db_path
@@ -52,11 +61,11 @@ def insert_article(conn, article: dict):
     conn.execute(
         """
         INSERT OR IGNORE INTO articles
-            (id, source, headline, url, scraped_content, category, summary,
-             word_count, article_image_url, card_path, status, created_at)
+            (id, source, headline, url, scraped_content, category, categories, tags,
+             summary, word_count, article_image_url, card_path, short_url, status, created_at)
         VALUES
-            (:id, :source, :headline, :url, :scraped_content, :category, :summary,
-             :word_count, :article_image_url, :card_path, :status, :created_at)
+            (:id, :source, :headline, :url, :scraped_content, :category, :categories, :tags,
+             :summary, :word_count, :article_image_url, :card_path, :short_url, :status, :created_at)
         """,
         article,
     )

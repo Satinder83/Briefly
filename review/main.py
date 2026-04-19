@@ -5,6 +5,7 @@ Run: uvicorn review.main:app --reload
 Open: http://localhost:8000
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -24,11 +25,22 @@ app = FastAPI(title="Briefly Review")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 CARDS_DIR = Path(__file__).parent.parent / "output" / "cards"
 
+
+def _fromjson(value):
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except Exception:
+        return [value]
+
+
 _jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=True,
     cache_size=0,
 )
+_jinja_env.filters["fromjson"] = _fromjson
 templates = Jinja2Templates(env=_jinja_env)
 
 # serve card images at /cards/<filename>

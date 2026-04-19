@@ -8,66 +8,84 @@ MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:14b")
 TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "120"))
 
 PROMPT_TEMPLATE = """\
-You are a news editor. Given the article below, return a JSON object with exactly these keys:
+You are a professional news editor. Given the headline and article below, return a JSON object with EXACTLY these keys:
 
 {{
-  "category": one of ["politics", "tech", "finance", "science", "world", "sports", "health"],
-  "summary": "Use this prompt Role: Professional News Editor
-
-Task: Summarize the article into a high-density, Inshorts-style brief.
-
-STRICT RULES:
-
-Headline:
-- Write a short, factual, punchy headline (NOT included in word count).
-
-Body:
-- EXACTLY 60-65 words.
-- ONE paragraph only.
-- Maximum 3-4 sentences.
-
-CONTENT RULES:
-- Use ONLY facts from the article. No assumptions, no outside knowledge.
-- Start immediately with the main event (who/what/when if available).
-- Include at least TWO specific data points (numbers, percentages, dates, or amounts) if present in the article.
-- Prioritize information in this order:
-1. Core event (what happened)
-2. Key details (who, where, scale, numbers)
-3. Issue/failure/conflict (if any)
-4. Outcome, response, or current status
-
-STYLE RULES:
-- Use neutral, factual North American journalism tone.
-- Use short, direct, declarative sentences.
-- Avoid vague terms like “surged,” “significant,” “experts say” unless backed by specific data or attribution.
-- Do NOT generalize or summarize causes unless explicitly stated in the article.
-- Attribute opinions or explanations clearly (e.g., “X said…”).
-
-PROHIBITED:
-- No opinions, conclusions, or recommendations.
-- No added interpretation or inferred causes.
-- No filler phrases (e.g., “This article discusses,” “The report highlights”).
-- No repetition.
-
-MANDATORY VALIDATION (before output):
-1. Word count is between 60-65.
-2. First sentence clearly states the main event.
-3. At least two concrete facts (numbers/names) are included if available.
-4. No information is added beyond the article.
-5. Every sentence adds new information.
-
-Output format:
-
-Headline: <headline>
-
-Summary: <60-65 word paragraph>",
-  "word_count": integer count of words in the summary,
-  "qa_pass": true if the article has enough substance to summarize, false if it is a duplicate, ad, or too short
+  "headline": "<rewritten headline>",
+  "categories": ["<primary>", "<optional secondary>"],
+  "tags": ["<tag1>", "<tag2>", "<tag3>"],
+  "summary": "<60-65 word summary>",
+  "word_count": <integer>,
+  "qa_pass": <true|false>
 }}
 
-Return ONLY valid JSON, no markdown fences, no extra text.
+------------------------
+HEADLINE RULES:
+- Maximum 12 words
+- Must include WHO + WHAT
+- Use strong, precise present-tense verbs (e.g. says, warns, approves, rejects)
+- AP/Reuters style — factual, no clickbait
+- Remove filler phrases like "when it comes to", "regarding", "related to"
+- Use quotes ONLY if central to the story
+- Avoid vague words like "issue", "situation", "concerns"
 
-Headline: {headline}
+------------------------
+CATEGORY RULES:
+- Select ONLY from this list:
+  ["politics","policy","elections","law","economy","markets","banking","business","corporate",
+  "technology","ai","cybersecurity","health","science","environment","world","diplomacy",
+  "defense","energy","society","education","immigration","sports"]
+- Choose 1-3 maximum
+- Do NOT create new categories
+- Prefer the most specific applicable ones
+
+------------------------
+TAG RULES:
+- Extract 3-6 tags
+- Include:
+  - key entities (people, countries, organizations)
+  - key topics (e.g. trade, inflation, AI)
+  - agreements or programs if present (e.g. CUSMA)
+- Use short noun phrases
+- Avoid generic words like "news", "issue", "report"
+
+------------------------
+SUMMARY RULES:
+- EXACTLY 60-65 words, one paragraph, 3-4 sentences max
+- Start immediately with the main event (who/what/when if available)
+- Include at least TWO specific data points (numbers, percentages, dates, or amounts) if present
+- Prioritize information in this order:
+  1. Core event (what happened)
+  2. Key details (who, where, scale, numbers)
+  3. Issue/failure/conflict (if any)
+  4. Outcome, response, or current status
+- Use neutral, factual North American journalism tone
+- Short, direct, declarative sentences
+- Attribute opinions clearly (e.g. "X said…")
+- Use ONLY facts from the article — no assumptions, no outside knowledge
+
+PROHIBITED in summary:
+- No opinions, conclusions, or recommendations
+- No added interpretation or inferred causes
+- No filler phrases ("This article discusses", "The report highlights")
+- No repetition
+
+------------------------
+QA_PASS RULES:
+- false if: article is an ad, duplicate, promotional, or too thin (< 5 sentences of real content)
+- true otherwise
+
+------------------------
+FINAL CHECK (MANDATORY):
+1. Headline is under 12 words with a clear subject and action
+2. Categories are from the allowed list only
+3. Tags are specific and relevant
+4. Summary is exactly 60-65 words
+5. Output is valid JSON with no extra keys
+
+Return ONLY valid JSON. No markdown fences, no extra text.
+
+Original headline: {headline}
 Article: {content}
 """
 
@@ -117,10 +135,16 @@ def process_article(headline: str, content: str) -> dict | None:
         print("    [llm] unexpected response type")
         return None
 
-    required = {"category", "summary", "word_count", "qa_pass"}
+    required = {"headline", "categories", "tags", "summary", "word_count", "qa_pass"}
     if not required.issubset(data):
         print(f"    [llm] missing keys: {required - data.keys()}")
         return None
+
+    # Normalise: categories and tags must be lists
+    if isinstance(data["categories"], str):
+        data["categories"] = [data["categories"]]
+    if isinstance(data["tags"], str):
+        data["tags"] = [data["tags"]]
 
     return data
 

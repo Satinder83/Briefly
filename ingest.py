@@ -4,12 +4,13 @@ Briefly — ingest pipeline
 Fetch RSS feeds → scrape articles → LLM tag+summarize → generate cards → store in SQLite
 """
 
+import json
 import os
 import re
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
-from urllib.parse import urljoin
 
 import feedparser
 import requests
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 
 import card_gen
 import llm
+import yourls
 from db import get_conn, get_existing_urls, init_db, insert_article
 
 load_dotenv()
@@ -55,7 +57,6 @@ def safe_scrape(url: str) -> str:
 
 def extract_image_from_entry(entry) -> str | None:
     """Try media_content → media_thumbnail → enclosures → og:image."""
-    # feedparser normalises media: fields
     for attr in ("media_content", "media_thumbnail"):
         items = getattr(entry, attr, [])
         if items and isinstance(items, list):
@@ -73,7 +74,6 @@ def extract_image_from_entry(entry) -> str | None:
 def extract_og_image(url: str) -> str | None:
     try:
         resp = requests.get(url, timeout=6, headers=HEADERS)
-        # simple regex — avoids adding BeautifulSoup dependency
         match = re.search(
             r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
             resp.text,
@@ -113,11 +113,11 @@ def process_feed(source_name: str, feed_url: str, existing_urls: set, conn) -> i
             break
 
         url = entry.get("link", "").strip()
-        headline = entry.get("title", "").strip()
-        if not url or not headline:
+        rss_headline = entry.get("title", "").strip()
+        if not url or not rss_headline:
             continue
         if url in existing_urls:
-            print(f"  skip (dup): {headline[:70]}")
+            print(f"  skip (dup): {rss_headline[:70]}")
             continue
 
         print(f"  scraping: {url[:80]}")
@@ -128,7 +128,7 @@ def process_feed(source_name: str, feed_url: str, existing_urls: set, conn) -> i
             continue
 
         print(f"  {len(content)} chars — calling LLM …")
-        result = llm.process_article(headline, content)
+        result = llm.process_article(rss_headline, content)
         if result is None:
             print("  skip (LLM failed)")
             continue
@@ -137,14 +137,24 @@ def process_feed(source_name: str, feed_url: str, existing_urls: set, conn) -> i
             existing_urls.add(url)
             continue
 
-        category = result["category"]
+        headline = result.get("headline") or rss_headline
+        categories_list = result.get("categories") or []
+        category = categories_list[0] if categories_list else "world"
+        tags_list = result.get("tags") or []
         summary = result["summary"]
         word_count = result.get("word_count", 0)
 
         image_url = extract_image_from_entry(entry) or extract_og_image(url)
 
-        import uuid
         article_id = str(uuid.uuid4())
+
+        print(f"  shortening URL …")
+        short_url = yourls.shorten(url)
+        if short_url:
+            print(f"  short URL: {short_url}")
+        else:
+            print(f"  short URL: skipped (YOURLS not configured)")
+
         print(f"  generating card …")
         card_path = card_gen.generate_card(
             article_id=article_id,
@@ -162,10 +172,13 @@ def process_feed(source_name: str, feed_url: str, existing_urls: set, conn) -> i
             "url": url,
             "scraped_content": content,
             "category": category,
+            "categories": json.dumps(categories_list),
+            "tags": json.dumps(tags_list),
             "summary": summary,
             "word_count": word_count,
             "article_image_url": image_url or "",
             "card_path": card_path,
+            "short_url": short_url or "",
             "status": "PENDING",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "published_at": None,

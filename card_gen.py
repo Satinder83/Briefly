@@ -1,25 +1,13 @@
 import io
 import os
-import textwrap
 from pathlib import Path
 
 import requests
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 
 CARDS_DIR = Path(__file__).parent / "output" / "cards"
 CARD_W, CARD_H = 1080, 1350
-IMAGE_H = 540  # top 40%
-
-CATEGORY_COLORS = {
-    "politics": "#c0392b",
-    "tech":     "#2980b9",
-    "finance":  "#27ae60",
-    "science":  "#8e44ad",
-    "world":    "#e67e22",
-    "sports":   "#16a085",
-    "health":   "#2c3e50",
-}
-DEFAULT_PILL_COLOR = "#555555"
+IMAGE_H = 540
 
 BG_COLOR = "#111111"
 TEXT_COLOR = "#ffffff"
@@ -76,14 +64,13 @@ def _draw_pill(draw: ImageDraw.ImageDraw, text: str, x: int, y: int, color: str)
     bbox = draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     pad_x, pad_y = 22, 10
-    rx, ry = x, y
     draw.rounded_rectangle(
-        [rx, ry, rx + tw + pad_x * 2, ry + th + pad_y * 2],
+        [x, y, x + tw + pad_x * 2, y + th + pad_y * 2],
         radius=20,
         fill=color,
     )
-    draw.text((rx + pad_x, ry + pad_y), text, font=font, fill="#ffffff")
-    return ry + th + pad_y * 2
+    draw.text((x + pad_x, y + pad_y), text, font=font, fill="#ffffff")
+    return y + th + pad_y * 2
 
 
 def _draw_wrapped_text(
@@ -139,26 +126,20 @@ def generate_card(
     if article_img:
         cropped = _cover_crop(article_img, CARD_W, IMAGE_H)
         canvas.paste(cropped, (0, 0))
-        # gradient overlay at bottom of image
         gradient = Image.new("RGBA", (CARD_W, 120), (0, 0, 0, 0))
         for i in range(120):
             alpha = int(255 * (i / 120))
             ImageDraw.Draw(gradient).line([(0, i), (CARD_W, i)], fill=(17, 17, 17, alpha))
         canvas.paste(Image.new("RGB", (CARD_W, 120), BG_COLOR), (0, IMAGE_H - 120), gradient)
     else:
-        # solid color placeholder
-        pill_color = CATEGORY_COLORS.get(category.lower(), DEFAULT_PILL_COLOR)
-        placeholder = Image.new("RGB", (CARD_W, IMAGE_H), pill_color)
-        # subtle dark vignette
-        canvas.paste(placeholder, (0, 0))
+        canvas.paste(Image.new("RGB", (CARD_W, IMAGE_H), "#1a1a2e"), (0, 0))
 
     # --- text section ---
     pad = 60
     y = IMAGE_H + 30
 
-    # category pill
-    pill_color = CATEGORY_COLORS.get(category.lower(), DEFAULT_PILL_COLOR)
-    y = _draw_pill(draw, category.upper(), pad, y, pill_color) + 28
+    # app branding pill
+    y = _draw_pill(draw, "BRIEFLY", pad, y, "#1a73e8") + 28
 
     # headline
     font_headline = _load_font(44, bold=True)
