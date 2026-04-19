@@ -1,0 +1,19 @@
+# database
+*.db
+*.sqlite
+*.sqlite3
+
+# generated cards
+output/
+
+# credentials
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# mac
+.DS_Store

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m py_compile db.py llm.py card_gen.py ingest.py publish.py review/main.py)",
+      "Bash(python3 -c \"from db import init_db, get_conn, get_existing_urls; init_db\\(\\); conn=get_conn\\(\\); print\\('DB init OK, urls:', len\\(get_existing_urls\\(conn\\)\\)\\); conn.close\\(\\)\")",
+      "Bash(curl -s http://localhost:11434/api/tags)",
+      "Bash(sqlite3 /Users/satinderpalsingh/Projects/Briefly/briefly.db \"SELECT source, headline, status, created_at FROM articles ORDER BY created_at DESC LIMIT 10;\")",
+      "Bash(sqlite3 /Users/satinderpalsingh/Projects/Briefly/briefly.db \"SELECT COUNT\\(*\\) as total, status FROM articles GROUP BY status;\")"
+    ]
+  }
+}

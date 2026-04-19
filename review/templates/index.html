@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefly — Review</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --muted: #888;
+    --green: #27ae60;
+    --red: #c0392b;
+    --blue: #2980b9;
+    --pill-bg: #2a2a2a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; }
+  header { padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 24px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 6px 14px; border-radius: 20px; font-size: 13px; }
+  nav a:hover, nav a.active { background: var(--surface); color: var(--text); }
+  .badge { background: var(--blue); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; padding: 30px 40px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .card img { width: 100%; aspect-ratio: 4/5; object-fit: cover; display: block; }
+  .card .no-img { width: 100%; aspect-ratio: 4/5; background: var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
+  .card-body { padding: 18px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: var(--pill-bg); color: var(--muted); }
+  .pill.politics { background: #c0392b22; color: #c0392b; }
+  .pill.tech     { background: #2980b922; color: #2980b9; }
+  .pill.finance  { background: #27ae6022; color: #27ae60; }
+  .pill.science  { background: #8e44ad22; color: #8e44ad; }
+  .pill.world    { background: #e67e2222; color: #e67e22; }
+  .pill.sports   { background: #16a08522; color: #16a085; }
+  .pill.health   { background: #2c3e5022; color: #aaa; }
+  .source { font-size: 12px; color: var(--muted); }
+  .headline { font-size: 16px; font-weight: 600; line-height: 1.4; }
+  .summary { font-size: 13px; color: #aaa; line-height: 1.6; }
+  .summary textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; line-height: 1.6; padding: 8px; resize: vertical; min-height: 90px; }
+  .actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-approve { background: var(--green); color: #fff; }
+  .btn-reject  { background: var(--red); color: #fff; }
+  .btn-save    { background: var(--blue); color: #fff; }
+  .btn:hover   { opacity: 0.85; }
+  .status-approved { border-left: 3px solid var(--green); }
+  .status-rejected  { border-left: 3px solid var(--red); opacity: 0.6; }
+  .status-pending   { border-left: 3px solid var(--blue); }
+  .empty { grid-column: 1/-1; text-align: center; color: var(--muted); padding: 60px 0; font-size: 18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Briefly</h1>
+  <nav>
+    {% if current_status == 'PENDING' and counts.PENDING > 0 %}
+    <form method="post" action="/approve-all" style="display:inline">
+      <button class="btn btn-approve" style="margin-right:8px">Approve All ({{ counts.PENDING }})</button>
+    </form>
+    <form method="post" action="/reject-all" style="display:inline">
+      <button class="btn btn-reject" style="margin-right:16px">Reject All</button>
+    </form>
+    {% endif %}
+  </nav>
+  <nav>
+    <a href="/?status=PENDING"  class="{{ 'active' if current_status == 'PENDING'  else '' }}">
+      Pending <span class="badge">{{ counts.PENDING }}</span>
+    </a>
+    <a href="/?status=APPROVED" class="{{ 'active' if current_status == 'APPROVED' else '' }}">
+      Approved <span class="badge">{{ counts.APPROVED }}</span>
+    </a>
+    <a href="/?status=REJECTED" class="{{ 'active' if current_status == 'REJECTED' else '' }}">
+      Rejected <span class="badge">{{ counts.REJECTED }}</span>
+    </a>
+    <a href="/?status=ALL"      class="{{ 'active' if current_status == 'ALL'      else '' }}">
+      All <span class="badge">{{ counts.ALL }}</span>
+    </a>
+  </nav>
+</header>
+
+<div class="grid">
+  {% if not articles %}
+  <div class="empty">No {{ current_status.lower() }} articles.</div>
+  {% endif %}
+
+  {% for a in articles %}
+  <div class="card status-{{ a.status | lower }}">
+
+    {% if a.card_path %}
+      <img
+        src="/cards/{{ a.card_path.split('/')[-1] }}"
+        alt="{{ a.headline }}"
+        loading="lazy"
+        onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'no-img', textContent:'No card'}))"
+      >
+    {% else %}
+      <div class="no-img">No card</div>
+    {% endif %}
+
+    <div class="card-body">
+      <div class="meta">
+        <span class="pill {{ a.category | lower }}">{{ a.category }}</span>
+        <span class="source">{{ a.source }}</span>
+      </div>
+
+      <div class="headline">
+        <a href="{{ a.url }}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">{{ a.headline }}</a>
+      </div>
+
+      <form method="post" action="/edit/{{ a.id }}">
+        <div class="summary">
+          <textarea name="summary">{{ a.summary }}</textarea>
+        </div>
+        <div class="actions">
+          {% if a.status == 'PENDING' %}
+          <button class="btn btn-save" type="submit">Save</button>
+          {% endif %}
+        </div>
+      </form>
+
+      <div class="actions">
+        {% if a.status != 'APPROVED' %}
+        <form method="post" action="/approve/{{ a.id }}" style="display:inline">
+          <button class="btn btn-approve">Approve</button>
+        </form>
+        {% endif %}
+        {% if a.status != 'REJECTED' %}
+        <form method="post" action="/reject/{{ a.id }}" style="display:inline">
+          <button class="btn btn-reject">Reject</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+</body>
+</html>

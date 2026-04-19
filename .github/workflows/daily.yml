@@ -1,0 +1,46 @@
+name: Briefly daily ingest
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 06:00 ET = 11:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start Ollama
+        run: |
+          curl -fsSL https://ollama.ai/install.sh | sh
+          ollama serve &
+          sleep 5
+          ollama pull qwen2.5:14b
+
+      - name: Run ingest
+        env:
+          OLLAMA_HOST: http://localhost:11434
+          MAX_PER_FEED: ${{ vars.MAX_PER_FEED || '5' }}
+        run: python ingest.py
+
+      - name: Upload SQLite DB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: briefly-db-${{ github.run_id }}
+          path: briefly.db
+          retention-days: 7
+
+      - name: Upload cards artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cards-${{ github.run_id }}
+          path: output/cards/
+          retention-days: 7
