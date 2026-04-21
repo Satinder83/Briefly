@@ -49,31 +49,78 @@ TAG RULES:
 - Use short noun phrases
 - Avoid generic words like "news", "issue", "report"
 
-------------------------
-SUMMARY RULES:
-- EXACTLY 60-65 words, one paragraph, 3-4 sentences max
-- Start immediately with the main event (who/what/when if available)
-- Include at least TWO specific data points (numbers, percentages, dates, or amounts) if present
-- Prioritize information in this order:
-  1. Core event (what happened)
-  2. Key details (who, where, scale, numbers)
-  3. Issue/failure/conflict (if any)
-  4. Outcome, response, or current status
-- Use neutral, factual North American journalism tone
-- Short, direct, declarative sentences
-- Attribute opinions clearly (e.g. "X said…")
-- Use ONLY facts from the article — no assumptions, no outside knowledge
+SUMMARY TASK
 
-PROHIBITED in summary:
-- No opinions, conclusions, or recommendations
-- No added interpretation or inferred causes
-- No filler phrases ("This article discusses", "The report highlights")
+Write a high-density news summary.
+
+----------------------------------
+OUTPUT REQUIREMENTS:
+- EXACTLY 60-65 words
+- ONE paragraph
+- 3-4 sentences
+
+----------------------------------
+CONTENT RULES:
+- Start immediately with the main event (who/what/when)
+- Include AT LEAST TWO numeric facts from the article (dates, counts, percentages, amounts)
+- Include at least ONE named person if present in the article
+- Use only facts from the article (no assumptions, no outside knowledge)
+- Use actual event status words (e.g., "evacuated", "closed", "fired", not "risk", "possible")
+
+----------------------------------
+PRIORITY ORDER:
+1. Core event
+2. Key details (who, where, numbers)
+3. Conflict / issue
+4. Outcome / current status
+
+----------------------------------
+STYLE:
+- Neutral, factual North American journalism tone
+- Short, direct sentences
+- No filler phrases
 - No repetition
+
+----------------------------------
+PROHIBITED:
+- No opinions or conclusions
+- No inferred causes not explicitly stated
+- No vague language replacing concrete facts
+- No hallucinated facts
+
+----------------------------------
+MANDATORY SELF-CHECK (BEFORE OUTPUT):
+
+1. Word count = 60-65 exactly  
+2. At least 2 numeric facts included  
+3. Named person included (if present in article)  
+4. No vague terms replacing real events  
+5. No added or incorrect facts  
+6. At least ONE related development/location/party beyond the lead event included
+
+IF ANY RULE FAILS:
+→ Rewrite the summary until ALL conditions are satisfied.
+
+----------------------------------
+OUTPUT:
+Summary: <final 60-65 word paragraph only>
 
 ------------------------
 QA_PASS RULES:
-- false if: article is an ad, duplicate, promotional, or too thin (< 5 sentences of real content)
-- true otherwise
+true if ALL of the following:
+- Article has at least 5 sentences of real content
+- Article is not an ad, duplicate, or promotional content
+- Summary includes at least 2 numeric facts from the article
+- Summary includes at least 1 named person (if article provides one)
+- Summary uses actual event status words (not vague language)
+- Summary contains no hallucinated facts
+
+false if ANY of the following:
+- Article is an ad, duplicate, promotional, or too thin (< 5 sentences)
+- Summary omits a key number that was explicitly stated
+- Summary omits a named person who was explicitly identified
+- Summary uses vague language ("risk of", "impending") instead of actual status
+- Summary contains a fact not present in the article
 
 ------------------------
 FINAL CHECK (MANDATORY):
@@ -82,6 +129,9 @@ FINAL CHECK (MANDATORY):
 3. Tags are specific and relevant
 4. Summary is exactly 60-65 words
 5. Output is valid JSON with no extra keys
+6. Summary includes at least 2 numeric facts from the article
+7. Summary includes at least 1 named person (if present in article)
+8. No hallucinated facts detected in summary
 
 Return ONLY valid JSON. No markdown fences, no extra text.
 
