@@ -35,7 +35,7 @@ import google.generativeai as genai
 import threading
 import requests
 
-GEMINI_API_KEY = "AIzaSyDOYOVyB6hKL4zAfowSukoZxutMxj2VUzI"
+GEMINI_API_KEY = ""
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash-lite")
 

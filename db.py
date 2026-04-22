@@ -33,13 +33,17 @@ def init_db(db_path=DB_PATH):
             article_image_url TEXT,
             card_path         TEXT,
             short_url         TEXT,
+            review_score      INTEGER,
+            review_verdict    TEXT,
+            review_issues     TEXT,
             status            TEXT DEFAULT 'PENDING',
             published_at      TEXT,
             created_at        TEXT DEFAULT (datetime('now'))
         )
     """)
     # migrate existing DBs that may be missing newer columns
-    for col in ("short_url TEXT", "categories TEXT", "tags TEXT"):
+    for col in ("short_url TEXT", "categories TEXT", "tags TEXT",
+                "review_score INTEGER", "review_verdict TEXT", "review_issues TEXT"):
         try:
             conn.execute(f"ALTER TABLE articles ADD COLUMN {col}")
         except Exception:
@@ -62,10 +66,12 @@ def insert_article(conn, article: dict):
         """
         INSERT OR IGNORE INTO articles
             (id, source, headline, url, scraped_content, category, categories, tags,
-             summary, word_count, article_image_url, card_path, short_url, status, created_at)
+             summary, word_count, article_image_url, card_path, short_url,
+             review_score, review_verdict, review_issues, status, created_at)
         VALUES
             (:id, :source, :headline, :url, :scraped_content, :category, :categories, :tags,
-             :summary, :word_count, :article_image_url, :card_path, :short_url, :status, :created_at)
+             :summary, :word_count, :article_image_url, :card_path, :short_url,
+             :review_score, :review_verdict, :review_issues, :status, :created_at)
         """,
         article,
     )
